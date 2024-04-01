@@ -39,6 +39,18 @@ class DownloadedPuzzle(TypedDict):
     solution: bytes
 
 
+def looks_like_pdf(content: bytes) -> bool:
+    return content.startswith(b"%PDF-")
+
+
+def is_valid_pdf_response(response: requests.Response) -> bool:
+    return (
+        response.ok
+        and response.headers['Content-Type'].startswith("application/pdf")
+        and looks_like_pdf(response.content)
+    )
+
+
 def determine_date(puzzle_date: str | None) -> str:
     base = date.fromisoformat(puzzle_date) if puzzle_date else date.today()
     return base.isoformat()
@@ -74,11 +86,21 @@ def download(
         "southpaw": str(left_handed).lower(),
         "large_print": str(large_print).lower(),
     }
-    puzzle_pdf = session.get(puzzle_url, params=params).content
-    soln_pdf = session.get(soln_url).content
+    puzzle_response = session.get(puzzle_url, params=params)
+    solution_response = session.get(soln_url)
+
+    if not is_valid_pdf_response(puzzle_response):
+        raise Exception(
+            "Unable to retrieve a valid PDF for the puzzle"
+        )
+    if not is_valid_pdf_response(solution_response):
+        raise Exception(
+            "Unable to retrieve a valid PDF for the solution"
+        )
+
     return {
-        "puzzle": puzzle_pdf,
-        "solution": soln_pdf,
+        "puzzle": puzzle_response.content,
+        "solution": solution_response.content,
     }
 
 
