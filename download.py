@@ -3,14 +3,16 @@
 import os
 import subprocess
 import sys
+from datetime import date
 from http.cookiejar import MozillaCookieJar
 from pathlib import Path
-from datetime import date
+from typing import TypedDict
 
 import click
 import requests
 
-from typing import TypedDict
+PUZZLES_API_URL = "https://www.nytimes.com/svc/crosswords/v3/76535102/puzzles.json"
+PUZZLE_BASE_URL = "https://www.nytimes.com/svc/crosswords/v2/puzzle"
 
 
 class Puzzle(TypedDict):
@@ -46,8 +48,7 @@ def get_puzzle_id(session: requests.Session, desired_date: str | None) -> int:
     puzzle_date = determine_date(desired_date)
     params = {"date_start": puzzle_date, "date_end": puzzle_date}
 
-    api_url = "https://www.nytimes.com/svc/crosswords/v3/76535102/puzzles.json"
-    response: PuzzlesApiResponse = session.get(api_url, params=params).json()
+    response: PuzzlesApiResponse = session.get(PUZZLES_API_URL, params=params).json()
     if response["status"] != "OK" or not response.get("results", None):
         raise Exception(f"Unable to get puzzles for {puzzle_date}")
     puzzles = [
@@ -63,9 +64,13 @@ def get_puzzle_id(session: requests.Session, desired_date: str | None) -> int:
 def download(
     session: requests.Session, puzzle_id: int, large_print: bool, left_handed: bool
 ) -> DownloadedPuzzle:
-    puzzle_url = f"https://www.nytimes.com/svc/crosswords/v2/puzzle/{puzzle_id}.pdf"
-    soln_url = f"https://www.nytimes.com/svc/crosswords/v2/puzzle/{puzzle_id}.ans.pdf"
+    puzzle_url = f"{PUZZLE_BASE_URL}/{puzzle_id}.pdf"
+    soln_url = f"{PUZZLE_BASE_URL}/{puzzle_id}.ans.pdf"
+
+    # Variations of the puzzle (left-handed or large-print) are retrieved via
+    # URL query string parameters. These do not apply to the solution PDF.
     params = {
+        # "southpaw" is the parameter name the API uses for left-handed puzzles
         "southpaw": str(left_handed).lower(),
         "large_print": str(large_print).lower(),
     }
@@ -75,6 +80,20 @@ def download(
         "puzzle": puzzle_pdf,
         "solution": soln_pdf,
     }
+
+
+def write_pdf(data: bytes, path: os.PathLike) -> None:
+    with open(path, "wb") as pdf:
+        pdf.write(data)
+        print(f"Wrote {len(data)} bytes to {path}")
+
+
+def print_file(path: os.PathLike) -> None:
+    try:
+        result = subprocess.run(["lp", str(path)], capture_output=True)
+        print(result.stdout)
+    except subprocess.SubprocessError as e:
+        print(str(e), file=sys.stderr)
 
 
 @click.command("nyt-download")
@@ -97,6 +116,12 @@ def download(
     default=False,
     show_default=True,
     help="Whether to fetch the left-handed puzzle variant",
+)
+@click.option(
+    "--solution/--no-solution",
+    default=True,
+    show_default=True,
+    help="Whether to also include the solution in the download/print"
 )
 @click.option(
     "--cookies",
@@ -125,9 +150,10 @@ def main(
     puzzle_date: str | None,
     large_print: bool,
     left_handed: bool,
+    solution: bool,
     cookies: Path,
     out_dir: Path,
-    do_print: bool
+    do_print: bool,
 ):
     jar = MozillaCookieJar(cookies)
     jar.load()
@@ -143,26 +169,15 @@ def main(
 
     puzzle_filename = Path(out_dir, f"{determine_date(puzzle_date)}.pdf")
     soln_filename = Path(out_dir, f"{determine_date(puzzle_date)}.soln.pdf")
-    with open(puzzle_filename, "wb") as puzzle_pdf:
-        puzzle_pdf.write(files["puzzle"])
-        print(f"Wrote {len(files['puzzle'])} bytes to {puzzle_filename}")
-    with open(soln_filename, "wb") as soln_pdf:
-        soln_pdf.write(files["solution"])
-        print(f"Wrote {len(files['solution'])} bytes to {soln_filename}")
+    write_pdf(files["puzzle"], puzzle_filename)
+    if solution:
+        write_pdf(files["solution"], soln_filename)
 
     if do_print:
         print(f"Sending {puzzle_filename} to default printer")
-        try:
-            result = subprocess.run(["lp", str(puzzle_filename)], capture_output=True)
-            print(result.stdout)
-        except subprocess.SubprocessError as e:
-            print(str(e), file=sys.stderr)
-        print(f"Sending {soln_filename} to default printer")
-        try:
-            result = subprocess.run(["lp", str(soln_filename)], capture_output=True)
-            print(result.stdout)
-        except subprocess.SubprocessError as e:
-            print(str(e), file=sys.stderr)
+        print_file(puzzle_filename)
+        if solution:
+            print_file(soln_filename)
 
 
 if __name__ == "__main__":

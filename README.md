@@ -20,11 +20,12 @@ You can then run the script as `./download.py`. Several command line flags are s
 - `--date`, `-d` - The date (`YYYY-MM-DD`) of the puzzle (defaults to today's date, notably **not** the latest puzzle)
 - `--large-print` - Fetch the large-print variant of the puzzle
 - `--left-handed` - Fetch the left-handed variant of the puzzle
-- `--print`, `-p` - Automatically send the puzzle (and solution) PDF to the printer using [`lp(1)`][lp-man]
+- `--solution` - Fetch the solution in addition to the puzzle (default to enabled)
+- `--print`, `-p` - Automatically send the puzzle (and solution if chosen) PDF to the printer using [`lp(1)`][lp-man]
 - `--out-dir`, `-o` - The directory where PDFs should be written
 - `--cookies`, `-b` - The path to the cookie file (defaults to `./cookies.txt`)
 
-So for example, to automically print the left-handed variant of the July 14, 2022 puzzle and download to `puzzles/`:
+So for example, to automatically print the left-handed variant of the July 14, 2022 puzzle and download to `puzzles/`:
 
 ```bash
 ./download.py -p -d 2022-07-24 --left-handed -o puzzles
