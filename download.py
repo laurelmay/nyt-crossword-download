@@ -46,7 +46,7 @@ def looks_like_pdf(content: bytes) -> bool:
 def is_valid_pdf_response(response: requests.Response) -> bool:
     return (
         response.ok
-        and response.headers['Content-Type'].startswith("application/pdf")
+        and response.headers["Content-Type"].startswith("application/pdf")
         and looks_like_pdf(response.content)
     )
 
@@ -90,13 +90,9 @@ def download(
     solution_response = session.get(soln_url)
 
     if not is_valid_pdf_response(puzzle_response):
-        raise Exception(
-            "Unable to retrieve a valid PDF for the puzzle"
-        )
+        raise Exception("Unable to retrieve a valid PDF for the puzzle")
     if not is_valid_pdf_response(solution_response):
-        raise Exception(
-            "Unable to retrieve a valid PDF for the solution"
-        )
+        raise Exception("Unable to retrieve a valid PDF for the solution")
 
     return {
         "puzzle": puzzle_response.content,
@@ -111,11 +107,41 @@ def write_pdf(data: bytes, path: os.PathLike) -> None:
 
 
 def print_file(path: os.PathLike) -> None:
-    try:
-        result = subprocess.run(["lp", str(path)], capture_output=True)
-        print(result.stdout)
-    except subprocess.SubprocessError as e:
-        print(str(e), file=sys.stderr)
+    if os.name == "nt":
+        try:
+            # This function is only available on Windows
+            os.startfile(path, "print")
+        except OSError as e:
+            if e.winerror == 1155:
+                print(
+                    "No application is registered to handle printing PDFs, make sure that an application is registered and that it supports printing",
+                    file=sys.stderr,
+                )
+                print(
+                    "This change can be made in Windows Settings. Note that you may have to end all tasks of the current default in Task Manager.",
+                    file=sys.stderr,
+                )
+                if click.confirm(
+                    "Would you like to try opening in the default app without automatically printing?"
+                ):
+                    try:
+                        os.startfile(path)
+                    except OSError as e:
+                        print(
+                            "The file failed to open in the default app.",
+                            file=sys.stderr,
+                        )
+                        print(str(e), file=sys.stderr)
+            else:
+                print(str(e), file=sys.stderr)
+            print()
+
+    else:
+        try:
+            result = subprocess.run(["lp", str(path)], capture_output=True)
+            print(result.stdout)
+        except subprocess.SubprocessError as e:
+            print(str(e), file=sys.stderr)
 
 
 @click.command("nyt-download")
@@ -143,7 +169,7 @@ def print_file(path: os.PathLike) -> None:
     "--solution/--no-solution",
     default=True,
     show_default=True,
-    help="Whether to also include the solution in the download/print"
+    help="Whether to also include the solution in the download/print",
 )
 @click.option(
     "--cookies",
@@ -163,6 +189,7 @@ def print_file(path: os.PathLike) -> None:
 )
 @click.option(
     "--print/--no-print",
+    "-p",
     "do_print",
     default=False,
     show_default=True,
@@ -199,6 +226,7 @@ def main(
         print(f"Sending {puzzle_filename} to default printer")
         print_file(puzzle_filename)
         if solution:
+            print(f"Sending {soln_filename} to default printer")
             print_file(soln_filename)
 
 

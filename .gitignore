@@ -1,3 +1,4 @@
 out/
 *cookies.txt
 *.cookies
+env/
