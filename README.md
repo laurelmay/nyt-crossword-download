@@ -31,5 +31,18 @@ So for example, to automatically print the left-handed variant of the July 14, 2
 ./download.py -p -d 2022-07-24 --left-handed -o puzzles
 ```
 
+### Printing on Windows
+
+On Windows, the default application for PDFs must support automatically printing. You can check if the registered
+default application supports this by checking if right-clicking on a PDF in Windows Explorer shows a "Print" option
+(you may need to select "Show more options"). If not, you will need to change your default application in the
+Settings app. You may need to end all tasks for the currently registered default in order to change it.  If your
+current default is Microsoft Edge (which does not support printing), you may have to end the relevant Edge or `msedge`
+tasks from within Task Manager before changing the default app.
+
+Another downside with printing on Windows is that the default PDF app may remain open after printing is done. Python
+does not provide any information about the launched process from its `os.startfile` function so, unfortunately, there
+isn't much to do about that.
+
 [cookie-format]: https://curl.se/docs/http-cookies.html
 [lp-man]: https://man.archlinux.org/man/lp.1.en
