@@ -1,4 +1,5 @@
 out/
 *cookies.txt
 *.cookies
+cookies.sqlite
 env/
