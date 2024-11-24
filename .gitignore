@@ -3,3 +3,4 @@ out/
 *.cookies
 cookies.sqlite
 env/
+.env/

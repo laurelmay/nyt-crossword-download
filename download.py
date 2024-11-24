@@ -3,6 +3,7 @@
 import os
 import subprocess
 import sys
+from dataclasses import dataclass
 from datetime import date
 from http.cookiejar import MozillaCookieJar
 from pathlib import Path
@@ -33,8 +34,8 @@ class PuzzlesApiResponse(TypedDict):
     status: str
     results: list[Puzzle]
 
-
-class DownloadedPuzzle(TypedDict):
+@dataclass
+class DownloadedPuzzle:
     puzzle: bytes
     solution: bytes
 
@@ -94,16 +95,13 @@ def download(
     if not is_valid_pdf_response(solution_response):
         raise Exception("Unable to retrieve a valid PDF for the solution")
 
-    return {
-        "puzzle": puzzle_response.content,
-        "solution": solution_response.content,
-    }
+    return DownloadedPuzzle(puzzle=puzzle_response.content, solution=solution_response.content)
 
 
 def write_pdf(data: bytes, path: os.PathLike) -> None:
     with open(path, "wb") as pdf:
         pdf.write(data)
-        print(f"Wrote {len(data)} bytes to {path}")
+    print(f"Wrote {len(data)} bytes to {path}")
 
 
 def print_file(path: os.PathLike) -> None:
@@ -218,9 +216,9 @@ def main(
 
     puzzle_filename = Path(out_dir, f"{determine_date(puzzle_date)}.pdf")
     soln_filename = Path(out_dir, f"{determine_date(puzzle_date)}.soln.pdf")
-    write_pdf(files["puzzle"], puzzle_filename)
+    write_pdf(files.puzzle, puzzle_filename)
     if solution:
-        write_pdf(files["solution"], soln_filename)
+        write_pdf(files.solution, soln_filename)
 
     if do_print:
         print(f"Sending {puzzle_filename} to default printer")
