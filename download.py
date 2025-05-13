@@ -7,13 +7,14 @@ from dataclasses import dataclass
 from datetime import date
 from http.cookiejar import MozillaCookieJar
 from pathlib import Path
-from typing import TypedDict
+from typing import Never, TypedDict
 
 import click
 import requests
 
 PUZZLES_API_URL = "https://www.nytimes.com/svc/crosswords/v3//puzzles.json"
 PUZZLE_BASE_URL = "https://www.nytimes.com/svc/crosswords/v2/puzzle"
+REQUIRED_COOKIES = ["NYT-S", "SIDNY"]
 
 
 class Puzzle(TypedDict):
@@ -41,6 +42,15 @@ class DownloadedPuzzle:
     solution: bytes
 
 
+def assert_required_cookie_present(jar: MozillaCookieJar) -> None | Never:
+    for cookie in jar:
+        if cookie.name in REQUIRED_COOKIES and cookie.domain.endswith("nytimes.com"):
+            return
+    raise Exception(
+        f"The required cookies are not present in the cookies file at least one of {REQUIRED_COOKIES} is required"
+    )
+
+
 def looks_like_pdf(content: bytes) -> bool:
     return content.startswith(b"%PDF-")
 
@@ -60,7 +70,11 @@ def determine_date(puzzle_date: str | None) -> str:
 
 def get_puzzle_id(session: requests.Session, desired_date: str | None) -> int:
     puzzle_date = determine_date(desired_date)
-    params = {"date_start": puzzle_date, "date_end": puzzle_date, "puzzle_type": "daily"}
+    params = {
+        "date_start": puzzle_date,
+        "date_end": puzzle_date,
+        "puzzle_type": "daily",
+    }
 
     response = session.get(PUZZLES_API_URL, params=params)
     data: PuzzlesApiResponse = response.json()
@@ -77,7 +91,11 @@ def get_puzzle_id(session: requests.Session, desired_date: str | None) -> int:
 
 
 def download(
-    session: requests.Session, puzzle_id: int, large_print: bool, left_handed: bool, ink_saver: bool,
+    session: requests.Session,
+    puzzle_id: int,
+    large_print: bool,
+    left_handed: bool,
+    ink_saver: bool,
 ) -> DownloadedPuzzle:
     puzzle_url = f"{PUZZLE_BASE_URL}/{puzzle_id}.pdf"
     soln_url = f"{PUZZLE_BASE_URL}/{puzzle_id}.ans.pdf"
@@ -90,7 +108,7 @@ def download(
         "large_print": str(large_print).lower(),
     }
     if ink_saver:
-        params['block_opacity'] = '30'
+        params["block_opacity"] = "30"
     puzzle_response = session.get(puzzle_url, params=params)
     solution_response = session.get(soln_url)
 
@@ -200,10 +218,10 @@ def print_file(path: os.PathLike) -> None:
     help="Whether to send the PDFs to the default printer automatically",
 )
 @click.option(
-    '--ink-saver/--no-ink-saver',
+    "--ink-saver/--no-ink-saver",
     default=False,
     show_default=True,
-    help="Whether to enable the 'Ink Saver' option, using less ink for black squares"
+    help="Whether to enable the 'Ink Saver' option, using less ink for black squares",
 )
 def main(
     puzzle_date: str | None,
@@ -217,6 +235,8 @@ def main(
 ):
     jar = MozillaCookieJar(cookies)
     jar.load()
+
+    assert_required_cookie_present(jar)
 
     session = requests.Session()
     session.cookies = jar  # type: ignore
