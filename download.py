@@ -77,7 +77,7 @@ def get_puzzle_id(session: requests.Session, desired_date: str | None) -> int:
 
 
 def download(
-    session: requests.Session, puzzle_id: int, large_print: bool, left_handed: bool
+    session: requests.Session, puzzle_id: int, large_print: bool, left_handed: bool, ink_saver: bool,
 ) -> DownloadedPuzzle:
     puzzle_url = f"{PUZZLE_BASE_URL}/{puzzle_id}.pdf"
     soln_url = f"{PUZZLE_BASE_URL}/{puzzle_id}.ans.pdf"
@@ -89,6 +89,8 @@ def download(
         "southpaw": str(left_handed).lower(),
         "large_print": str(large_print).lower(),
     }
+    if ink_saver:
+        params['block_opacity'] = '30'
     puzzle_response = session.get(puzzle_url, params=params)
     solution_response = session.get(soln_url)
 
@@ -97,7 +99,9 @@ def download(
     if not is_valid_pdf_response(solution_response):
         raise Exception("Unable to retrieve a valid PDF for the solution")
 
-    return DownloadedPuzzle(puzzle=puzzle_response.content, solution=solution_response.content)
+    return DownloadedPuzzle(
+        puzzle=puzzle_response.content, solution=solution_response.content
+    )
 
 
 def write_pdf(data: bytes, path: os.PathLike) -> None:
@@ -195,10 +199,17 @@ def print_file(path: os.PathLike) -> None:
     show_default=True,
     help="Whether to send the PDFs to the default printer automatically",
 )
+@click.option(
+    '--ink-saver/--no-ink-saver',
+    default=False,
+    show_default=True,
+    help="Whether to enable the 'Ink Saver' option, using less ink for black squares"
+)
 def main(
     puzzle_date: str | None,
     large_print: bool,
     left_handed: bool,
+    ink_saver: bool,
     solution: bool,
     cookies: Path,
     out_dir: Path,
@@ -211,7 +222,7 @@ def main(
     session.cookies = jar  # type: ignore
 
     puzzle_id = get_puzzle_id(session, puzzle_date)
-    files = download(session, puzzle_id, large_print, left_handed)
+    files = download(session, puzzle_id, large_print, left_handed, ink_saver)
 
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
