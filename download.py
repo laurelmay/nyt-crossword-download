@@ -34,6 +34,7 @@ class PuzzlesApiResponse(TypedDict):
     status: str
     results: list[Puzzle]
 
+
 @dataclass
 class DownloadedPuzzle:
     puzzle: bytes
@@ -59,7 +60,7 @@ def determine_date(puzzle_date: str | None) -> str:
 
 def get_puzzle_id(session: requests.Session, desired_date: str | None) -> int:
     puzzle_date = determine_date(desired_date)
-    params = {"date_start": puzzle_date, "date_end": puzzle_date}
+    params = {"date_start": puzzle_date, "date_end": puzzle_date, "puzzle_type": "daily"}
 
     response: PuzzlesApiResponse = session.get(PUZZLES_API_URL, params=params).json()
     if response["status"] != "OK" or not response.get("results", None):
