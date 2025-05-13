@@ -62,11 +62,12 @@ def get_puzzle_id(session: requests.Session, desired_date: str | None) -> int:
     puzzle_date = determine_date(desired_date)
     params = {"date_start": puzzle_date, "date_end": puzzle_date, "puzzle_type": "daily"}
 
-    response: PuzzlesApiResponse = session.get(PUZZLES_API_URL, params=params).json()
-    if response["status"] != "OK" or not response.get("results", None):
+    response = session.get(PUZZLES_API_URL, params=params)
+    data: PuzzlesApiResponse = response.json()
+    if data["status"] != "OK" or not data.get("results", None):
         raise Exception(f"Unable to get puzzles for {puzzle_date}")
     puzzles = [
-        puzzle for puzzle in response["results"] if puzzle["print_date"] == puzzle_date
+        puzzle for puzzle in data["results"] if puzzle["print_date"] == puzzle_date
     ]
     if len(puzzles) != 1:
         raise Exception(
