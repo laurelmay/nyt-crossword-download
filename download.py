@@ -12,7 +12,7 @@ from typing import TypedDict
 import click
 import requests
 
-PUZZLES_API_URL = "https://www.nytimes.com/svc/crosswords/v3/76535102/puzzles.json"
+PUZZLES_API_URL = "https://www.nytimes.com/svc/crosswords/v3//puzzles.json"
 PUZZLE_BASE_URL = "https://www.nytimes.com/svc/crosswords/v2/puzzle"
 
 
