@@ -23,7 +23,7 @@ SELECT
 FROM moz_cookies
 WHERE
     host LIKE '%nytimes.com'
-    -- Technically, either of these cookies works but we'll grab them
+    -- Technically, either of these cookies works, but we'll grab them
     -- both just to help ensure that we have at least one
     AND name IN ('NYT-S', 'SIDNY')
 ;
